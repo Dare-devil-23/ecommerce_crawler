@@ -1,0 +1,7 @@
+Flask
+pymongo
+asyncio
+aiohttp
+playwright
+beautifulsoup4
+backoff
