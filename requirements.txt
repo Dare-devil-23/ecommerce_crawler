@@ -5,3 +5,5 @@ aiohttp
 playwright
 beautifulsoup4
 backoff
+python-dotenv
+requests
