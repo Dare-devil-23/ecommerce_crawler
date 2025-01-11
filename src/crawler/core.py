@@ -9,13 +9,15 @@ from aiohttp import ClientSession, TCPConnector, ClientTimeout, ClientError
 import backoff
 from typing import Optional, Set
 from collections import deque
+import random
 
 from src.config.settings import (
     PRODUCT_PATTERNS,
     MAX_RETRIES,
     REQUEST_TIMEOUT,
     OUTPUT_FILE,
-    HEADERS
+    HEADERS,
+    PROXIES
 )
 
 class WebCrawler:
@@ -42,8 +44,9 @@ class WebCrawler:
         max_tries=MAX_RETRIES
     )
     async def fetch_page(self, session: ClientSession, url: str) -> Optional[str]:
+        proxy = random.choice(PROXIES)
         try:
-            async with session.get(url, headers=HEADERS, ssl=False) as response:
+            async with session.get(url, headers=HEADERS, ssl=False, proxy=proxy) as response:
                 if response.status == 200:
                     return await response.text()
                 logging.warning(f"Non-200 response for {url}: {response.status}")
