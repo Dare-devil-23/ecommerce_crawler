@@ -23,6 +23,7 @@ You can interact with the live API using the endpoints documented in the API Doc
 
 - Python 3.8 or higher
 - pip (Python package installer)
+- MongoDB installed and running
 
 ## Installation
 
@@ -67,6 +68,44 @@ Configure the crawler settings in `src/config/settings.py`:
 - `MAX_RETRIES`: Maximum number of retry attempts for failed requests
 - `REQUEST_TIMEOUT`: Timeout for HTTP requests
 - `OUTPUT_FILE`: Path to save extracted product URLs
+
+### MongoDB Setup
+
+You can use either a local MongoDB installation or MongoDB Atlas (cloud-hosted):
+
+#### Local MongoDB
+1. Install and start MongoDB on your system
+2. Create a new database and collection:
+```bash
+mongosh
+use web_crawler_db
+db.createCollection("product_urls")
+```
+
+#### MongoDB Atlas
+1. Create a free account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+2. Create a new cluster and database
+3. In the Atlas UI, create a collection named `product_urls` in your database
+4. Get your connection string from Atlas UI (Click "Connect" > "Connect your application")
+
+#### Configuration
+Configure MongoDB connection in your `.env` file:
+
+For local MongoDB:
+```
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DB=web_crawler_db
+MONGODB_COLLECTION=product_urls
+```
+
+For MongoDB Atlas:
+```
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net
+MONGODB_DB=web_crawler_db
+MONGODB_COLLECTION=product_urls
+```
+
+Note: For production deployment, make sure to use appropriate MongoDB connection URI with authentication and replace the placeholder values in the Atlas URI with your actual credentials.
 
 ## Usage
 
@@ -135,15 +174,40 @@ The application exposes the following REST API endpoints:
 
 ## Output
 
-Product URLs are saved in JSON format with the following structure:
+The crawler saves product URLs in an array format:
+
+### JSON Output
 ```json
-{
-    "domain.com": [
-        "https://domain.com/product1",
-        "https://domain.com/product2"
-    ]
-}
+[
+    {
+        "domain": "https://flipkart.com",
+        "url": "https://flipkart.com/canon-pixma-mega-efficient-g3012-multi-function-wifi-color-ink-tank-printer-color-page-cost-0-21-rs-black-0-09-borderless-printing-2-additional-bottles/p/itm8b3fad9e0208a?pid=PRNF2QC6BX5M9NAJ&lid=LSTPRNF2QC6BX5M9NAJKRNVSY&marketplace=FLIPKART"
+    },
+    {
+        "domain": "https://flipkart.com",
+        "url": "https://flipkart.com/hp-smart-tank-all-one-580-multi-function-wifi-color-ink-printer-voice-activated-printing-google-assistant-print-scan-copy-1-extra-black-bottle-up-8000-6000-pages-box/p/itm57b849f65df2c?pid=PRNGKZB6CXPAQWZS&lid=LSTPRNGKZB6CXPAQWZSUYPZX3&marketplace=FLIPKART"
+    }
+]
 ```
+
+Each product URL is stored as a document in the array. The same structure is used for both the JSON file and MongoDB collection.
+
+### MongoDB Storage
+The documents in MongoDB collection follow the same structure, with each document containing a domain and URL:
+```json
+[
+    {
+        "domain": "https://flipkart.com",
+        "url": "https://flipkart.com/canon-pixma-mega-efficient-g3012-multi-function-wifi-color-ink-tank-printer-color-page-cost-0-21-rs-black-0-09-borderless-printing-2-additional-bottles/p/itm8b3fad9e0208a?pid=PRNF2QC6BX5M9NAJ&lid=LSTPRNF2QC6BX5M9NAJKRNVSY&marketplace=FLIPKART"
+    },
+    {
+        "domain": "https://flipkart.com",
+        "url": "https://flipkart.com/hp-smart-tank-all-one-580-multi-function-wifi-color-ink-printer-voice-activated-printing-google-assistant-print-scan-copy-1-extra-black-bottle-up-8000-6000-pages-box/p/itm57b849f65df2c?pid=PRNGKZB6CXPAQWZS&lid=LSTPRNGKZB6CXPAQWZSUYPZX3&marketplace=FLIPKART"
+    }
+]
+```
+
+Note: MongoDB automatically adds an `_id` field to each document for internal use.
 
 ## License
 
