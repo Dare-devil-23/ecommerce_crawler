@@ -1,4 +1,3 @@
-import json
 import re
 import logging
 from urllib.parse import urljoin, urlparse
@@ -10,12 +9,21 @@ import backoff
 from typing import Optional, Set
 from collections import deque
 import random
+from pymongo import MongoClient
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from the .env file
+load_dotenv()
+
+# Access environment variables
+MONGO_DB_USERNAME = os.getenv("MONGO_DB_USERNAME")
+MONGO_DB_PASSWORD = os.getenv("MONGO_DB_PASSWORD")
 
 from src.config.settings import (
     PRODUCT_PATTERNS,
     MAX_RETRIES,
     REQUEST_TIMEOUT,
-    OUTPUT_FILE,
     HEADERS,
     PROXIES
 )
@@ -24,16 +32,28 @@ class WebCrawler:
     def __init__(self):
         self.visited_urls: Set[str] = set()
         self.product_urls_set: Set[str] = set()
+        self.stop_crawling_flag = False
         
         # Configure Logging
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(message)s"
         )
-        
-        #empty the file
-        with open(OUTPUT_FILE, "w") as f:
-            f.write("")
+        self.client = MongoClient(f"mongodb+srv://{MONGO_DB_USERNAME}:{MONGO_DB_PASSWORD}@cluster0.wesrr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0&tlsAllowInvalidCertificates=true")
+        self.db = self.client["web_crawler_db"]
+        self.collection = self.db["product_urls"]
+    
+    def stop_crawling(self):
+        """Sets the stop flag to True."""
+        self.stop_crawling_flag = True
+        logging.info("Crawling stop request received.")
+
+    def reset(self):
+        """Resets the crawler state."""
+        self.stop_crawling_flag = False
+        self.visited_urls.clear()
+        self.product_urls_set.clear()
+        logging.info("Crawler state reset.")
 
     def is_product_url(self, url: str) -> bool:
         return any(re.search(pattern, url) for pattern in PRODUCT_PATTERNS)
@@ -95,29 +115,19 @@ class WebCrawler:
             if self.is_product_url(href):
                 product_urls.add(href)
         return product_urls
-
+    
     def write_product_url_to_file(self, domain: str, url: str) -> None:
         try:
-            try:
-                with open(OUTPUT_FILE, "r") as f:
-                    content = f.read()
-                    data = json.loads(content) if content.strip() else {}  # Initialize as empty object if the file is empty
-            except FileNotFoundError:
-                data = {}  # File doesn't exist, initialize an empty object
-
-            # Add the new product URL to the domain's list
-            if domain not in data:
-                data[domain] = []
-            if url not in data[domain]:
-                data[domain].append(url)
-
-            # Write the updated data back to the file
-            with open(OUTPUT_FILE, "w") as f:
-                json.dump(data, f, indent=4)
-            logging.info(f"Product URL written to file: {url}")
+            # Save product URL directly to MongoDB
+            self.collection.update_one(
+                {"domain": domain, "url": url},
+                {"$set": {"domain": domain, "url": url}},
+                upsert=True,
+            )
+            logging.info(f"Product URL saved to MongoDB: {url}")
 
         except Exception as e:
-            logging.error(f"Error writing product URL to file: {e}")
+            logging.error(f"Error saving product URL to MongoDB: {e}")
 
     async def crawl_domain(self, domain: str) -> None:
         logging.info(f"Starting crawl for domain: {domain}")
@@ -127,7 +137,7 @@ class WebCrawler:
         timeout = ClientTimeout(total=REQUEST_TIMEOUT)
         
         async with ClientSession(connector=conn, timeout=timeout) as session:
-            while queue:
+            while queue and not self.stop_crawling_flag:
                 current_url = queue.popleft()
                 if current_url in self.visited_urls:
                     continue

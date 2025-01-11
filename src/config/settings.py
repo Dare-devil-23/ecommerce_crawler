@@ -116,7 +116,6 @@ PROXIES = [
 # Request settings
 MAX_RETRIES = 3
 REQUEST_TIMEOUT = 30
-OUTPUT_FILE = "product_urls.json"
 
 # Browser headers
 HEADERS = {
