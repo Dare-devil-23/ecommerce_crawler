@@ -52,7 +52,7 @@ source venv/bin/activate
 
 4. Install dependencies:
 ```bash
-pip install -r requirements/base.txt
+pip install -r requirements.txt
 ```
 
 5. Install Playwright browsers:
