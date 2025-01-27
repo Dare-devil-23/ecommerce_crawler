@@ -114,7 +114,7 @@ You can either use the live API or run the crawler locally:
 ### Local Setup
 Run the crawler locally with:
 ```bash
-python main.py
+python app.py
 ```
 
 ### Live API
